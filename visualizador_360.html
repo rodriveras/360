@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeroView 360 - Visor Interactivo de Panoramas de Dron</title>
+    <meta name="description" content="Visualiza tus fotos panorámicas de 360 grados de DJI y otros drones con este visor interactivo premium.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Pannellum 360 Viewer CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
+    
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --accent: #06b6d4;
+            --bg-dark: #0b0f19;
+            --bg-card: rgba(22, 28, 45, 0.6);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Ambient Glow Orbs */
+        .orb {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.15;
+        }
+        .orb-1 {
+            background: var(--primary);
+            top: -100px;
+            right: -100px;
+        }
+        .orb-2 {
+            background: var(--accent);
+            bottom: -100px;
+            left: -100px;
+        }
+
+        /* Layout */
+        header {
+            position: relative;
+            z-index: 10;
+            padding: 2rem 2.5rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(11, 15, 25, 0.8);
+            backdrop-filter: blur(12px);
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 16px var(--primary-glow);
+        }
+
+        .logo-icon svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+
+        .logo-text h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-text span {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--accent);
+            font-weight: 600;
+            display: block;
+            margin-top: -2px;
+        }
+
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            position: relative;
+            z-index: 10;
+            height: calc(100vh - 100px);
+        }
+
+        @media (max-width: 1024px) {
+            main {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .sidebar {
+                border-left: none !important;
+                border-top: 1px solid var(--border-color);
+                height: auto !important;
+            }
+        }
+
+        /* Left Side: Viewer Container */
+        .viewer-container {
+            position: relative;
+            background: #05070c;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        #panorama-view {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: none;
+        }
+
+        .empty-state {
+            z-index: 5;
+            text-align: center;
+            max-width: 500px;
+            padding: 3rem;
+            border-radius: 24px;
+            background: var(--bg-card);
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(16px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .empty-state:hover, .empty-state.dragover {
+            border-color: var(--primary);
+            box-shadow: 0 20px 40px rgba(99, 102, 241, 0.1);
+            transform: translateY(-4px);
+        }
+
+        .empty-state-icon {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .empty-state-icon svg {
+            width: 40px;
+            height: 40px;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .empty-state p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 1.75rem;
+        }
+
+        /* Buttons & Controls */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: white;
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-main);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .actions-group {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        /* Sidebar styling */
+        .sidebar {
+            background: rgba(15, 22, 41, 0.95);
+            border-left: 1px solid var(--border-color);
+            padding: 2rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            height: 100%;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.25rem;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .card-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(6, 182, 212, 0.1);
+            color: var(--accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-icon svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .card h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .info-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .info-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            font-size: 0.88rem;
+            line-height: 1.4;
+            color: var(--text-muted);
+        }
+
+        .info-list li strong {
+            color: var(--text-main);
+        }
+
+        .info-list li svg {
+            width: 16px;
+            height: 16px;
+            color: var(--accent);
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* DJI Specific Alert */
+        .dji-alert {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 16px;
+            padding: 1.25rem;
+        }
+
+        .dji-alert-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            color: var(--warning);
+        }
+
+        .dji-alert-header svg {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        .dji-alert-header h4 {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .dji-alert p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 0.75rem;
+        }
+
+        .code-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #cbd5e1;
+            margin: 0.5rem 0;
+            word-break: break-all;
+        }
+
+        /* Demo Controls */
+        .demo-bar {
+            position: absolute;
+            bottom: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        .demo-label {
+            font-size: 0.85rem;
+            color: var(--accent);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .demo-label::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent);
+            animation: pulse 1.5s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+
+        /* Custom Pannellum UI Adjustments */
+        .pnlm-control-bar {
+            background: rgba(11, 15, 25, 0.85) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 8px !important;
+        }
+
+        .pnlm-zoom-in, .pnlm-zoom-out, .pnlm-fullscreen-toggle {
+            color: var(--text-main) !important;
+            background-color: transparent !important;
+        }
+
+        .pnlm-zoom-in:hover, .pnlm-zoom-out:hover, .pnlm-fullscreen-toggle:hover {
+            background-color: rgba(255,255,255,0.05) !important;
+        }
+
+        .pnlm-load-button {
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover)) !important;
+            border-radius: 12px !important;
+            border: none !important;
+            font-family: inherit !important;
+            font-size: 1rem !important;
+            font-weight: 600 !important;
+            padding: 10px 20px !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ambient Glow Orbs -->
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12C20,13.62 19.5,15.13 18.69,16.38L16.38,14.07C16.78,13.43 17,12.74 17,12A5,5 0 0,0 12,7C11.26,7 10.57,7.22 9.93,7.62L7.62,5.31C8.87,4.5 10.38,4 12,4M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9M5.31,7.62L7.62,9.93C7.22,10.57 7,11.26 7,12A5,5 0 0,0 12,17C12.74,17 13.43,16.78 14.07,16.38L16.38,18.69C15.13,19.5 13.62,20 12,20A8,8 0 0,1 4,12C4,10.38 4.5,8.87 5.31,7.62Z" />
+                </svg>
+            </div>
+            <div class="logo-text">
+                <h1>AeroView 360</h1>
+                <span>Drone Panorama Viewer</span>
+            </div>
+        </div>
+        <div>
+            <span style="color: var(--text-muted); font-size: 0.85rem;">Localizador de Archivos DJI</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- Viewer Viewport -->
+        <div class="viewer-container" id="drop-zone">
+            <div id="panorama-view"></div>
+
+            <!-- Empty State / File Uploader -->
+            <div class="empty-state" id="upload-panel">
+                <div class="empty-state-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375 .375 0 11-.75 0 .375 .375 0 01.75 0z" />
+                    </svg>
+                </div>
+                <h3>Visualiza tus fotos 360°</h3>
+                <p>Arrastra tu imagen de panorama cosida (equirectangular) aquí, o haz clic abajo para cargarla desde tu disco.</p>
+                <div class="actions-group">
+                    <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                        </svg>
+                        Examinar Archivo
+                    </button>
+                    <button class="btn btn-secondary" id="btn-demo">
+                        Ver Demostración de ALMA (Chile)
+                    </button>
+                </div>
+                <input type="file" id="file-input" style="display:none;" accept="image/*">
+            </div>
+
+            <!-- Demo Indicator (when demo is active) -->
+            <div class="demo-bar" id="demo-indicator" style="display:none;">
+                <span class="demo-label">Imagen de Muestra Activa</span>
+                <span style="font-size:0.85rem; color: var(--text-muted);">ALMA Observatory, San Pedro de Atacama, Chile</span>
+                <button class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; border-radius: 8px;" id="btn-reset">
+                    Cargar Mi Archivo
+                </button>
+            </div>
+        </div>
+
+        <!-- Sidebar / Guidance -->
+        <div class="sidebar">
+            
+            <!-- Explanatory Alert for DJI files -->
+            <div class="dji-alert">
+                <div class="dji-alert-header">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                    </svg>
+                    <h4>¿Por qué no abre directamente?</h4>
+                </div>
+                <p>Los drones DJI guardan las fotos individuales que componen el panorama en una carpeta separada llamada <strong>PANORAMA</strong> en la raíz de la tarjeta SD.</p>
+                <p>Si sólo copiaste la carpeta <code>DRONE</code> (o <code>100MEDIA</code>) a tu computadora, la carpeta de origen estará ausente:</p>
+                <div class="code-box">E:\PANORAMA\105_0074\</div>
+                <p style="margin-bottom:0;"><strong>Solución:</strong> Inserta la tarjeta SD de tu dron y copia la carpeta completa <code>PANORAMA</code> a tu disco <code>E:</code>, o cose las fotos individuales.</p>
+            </div>
+
+            <!-- How to stitch guide -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                    </div>
+                    <h4>¿Cómo coser tu panorama?</h4>
+                </div>
+                <ul class="info-list">
+                    <li>
+                        <svg fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"></path></svg>
+                        <span><strong>Microsoft ICE (Discontinuado pero gratis):</strong> Es la herramienta más rápida y limpia para Windows. Simplemente arrastra todas las fotos de <code>105_0074</code> y se coserán automáticamente.</span>
+                    </li>
+                    <li>
+                        <svg fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"></path></svg>
+                        <span><strong>Adobe Photoshop:</strong> Ve a <code>Archivo > Automatizar > Photomerge</code>, selecciona la carpeta <code>105_0074</code> y pulsa Aceptar.</span>
+                    </li>
+                    <li>
+                        <svg fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"></path></svg>
+                        <span><strong>Hugin (Código Abierto):</strong> Una alternativa potente y gratuita para coser fotos en 360 grados de alta precisión.</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- General info about the workspace -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                    </div>
+                    <h4>Archivos en tu Carpeta Dron</h4>
+                </div>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom: 0.75rem;">
+                    Hemos detectado <strong>20 archivos</strong> en tu carpeta local, incluyendo videos y fotos normales. Puedes abrir y ver el visor 360 en tu navegador de forma local.
+                </p>
+                <div style="font-size:0.8rem; color: var(--accent); font-weight:600;">
+                    Visualizador Local e:\DRONE\visualizador_360.html
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Pannellum 360 Viewer JS -->
+    <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+    
+    <script>
+        let viewerInstance = null;
+        const panoramaView = document.getElementById('panorama-view');
+        const uploadPanel = document.getElementById('upload-panel');
+        const fileInput = document.getElementById('file-input');
+        const dropZone = document.getElementById('drop-zone');
+        const btnDemo = document.getElementById('btn-demo');
+        const btnReset = document.getElementById('btn-reset');
+        const demoIndicator = document.getElementById('demo-indicator');
+
+        // Drag and Drop Handlers
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadPanel.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            uploadPanel.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadPanel.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type.startsWith('image/')) {
+                loadPanoramaFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                loadPanoramaFile(e.target.files[0]);
+            }
+        });
+
+        // Demo Loader
+        btnDemo.addEventListener('click', () => {
+            // URL of a beautiful high resolution equirectangular image of the ALMA Observatory (Chile)
+            // provided officially by Pannellum's servers.
+            load360Viewer('https://pannellum.org/images/alma.jpg', true);
+        });
+
+        // Reset to upload mode
+        btnReset.addEventListener('click', () => {
+            if (viewerInstance) {
+                viewerInstance.destroy();
+                viewerInstance = null;
+            }
+            panoramaView.style.display = 'none';
+            uploadPanel.style.display = 'block';
+            demoIndicator.style.display = 'none';
+            fileInput.value = '';
+        });
+
+        function loadPanoramaFile(file) {
+            const objectURL = URL.createObjectURL(file);
+            load360Viewer(objectURL, false);
+        }
+
+        function load360Viewer(imageUrl, isDemo) {
+            // Hide the upload form
+            uploadPanel.style.display = 'none';
+            panoramaView.style.display = 'block';
+            
+            if (isDemo) {
+                demoIndicator.style.display = 'flex';
+            } else {
+                demoIndicator.style.display = 'none';
+            }
+
+            // Destroy previous viewer if it exists
+            if (viewerInstance) {
+                viewerInstance.destroy();
+            }
+
+            // Initialize Pannellum
+            viewerInstance = pannellum.viewer('panorama-view', {
+                "type": "equirectangular",
+                "panorama": imageUrl,
+                "autoLoad": true,
+                "autoRotate": -1.5,
+                "compass": true,
+                "northOffset": 240,
+                "uiTooltip": true
+            });
+        }
+    </script>
+</body>
+</html>
