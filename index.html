@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeroView 360 Pro - Portal de Vuelo Virtual</title>
+    <meta name="description" content="Portal interactivo premium para visualización de recorridos virtuales 360 y telemetría de drones de AeroView.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --primary-glow: rgba(99, 102, 241, 0.25);
+            --accent: #06b6d4;
+            --accent-glow: rgba(6, 182, 212, 0.25);
+            --bg-dark: #05070f;
+            --bg-card: rgba(13, 18, 36, 0.65);
+            --bg-card-hover: rgba(20, 27, 51, 0.8);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.2);
+            --danger: #ef4444;
+            --font-mono: 'Share Tech Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated Ambient Background Particles */
+        #bg-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0.4;
+        }
+
+        /* Ambient Glow Orbs */
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(140px);
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.18;
+            animation: float 25s infinite alternate ease-in-out;
+        }
+        .orb-1 {
+            width: 600px;
+            height: 600px;
+            background: var(--primary);
+            top: -150px;
+            right: -100px;
+        }
+        .orb-2 {
+            width: 500px;
+            height: 500px;
+            background: var(--accent);
+            bottom: -100px;
+            left: -100px;
+            animation-delay: -10s;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(50px, 40px) scale(1.1); }
+            100% { transform: translate(-30px, -50px) scale(0.9); }
+        }
+
+        /* Header Styling */
+        header {
+            position: relative;
+            z-index: 10;
+            padding: 1.25rem 2.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(5, 7, 15, 0.75);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px var(--primary-glow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logo-icon::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.2), transparent);
+            transform: rotate(45deg);
+            animation: shine 4s infinite;
+        }
+
+        @keyframes shine {
+            0% { transform: translate(-100%, -100%) rotate(45deg); }
+            100% { transform: translate(100%, 100%) rotate(45deg); }
+        }
+
+        .logo-icon svg {
+            width: 26px;
+            height: 26px;
+            fill: white;
+        }
+
+        .logo-text h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #ffffff, #e2e8f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        .logo-text span {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--accent);
+            font-weight: 700;
+            display: block;
+            margin-top: -2px;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .status-badge {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            padding: 0.4rem 0.85rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 0 12px var(--success-glow);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--success);
+            border-radius: 50%;
+            animation: pulse 1.8s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.5; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            100% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 8px 3px rgba(16, 185, 129, 0); }
+        }
+
+        /* Layout Main Grid */
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            position: relative;
+            z-index: 10;
+            height: calc(100vh - 85px);
+            background: rgba(5, 7, 15, 0.4);
+        }
+
+        @media (max-width: 1100px) {
+            main {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .sidebar {
+                border-right: none !important;
+                border-bottom: 1px solid var(--border-color);
+                height: auto !important;
+            }
+            .viewer-panel {
+                height: 600px !important;
+            }
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            background: rgba(10, 14, 30, 0.8);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-color);
+            padding: 1.75rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            height: 100%;
+        }
+
+        /* Scrollbar aesthetics */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Sidebar Cards (Glassmorphism) */
+        .panel-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 1.25rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+        }
+
+        .panel-card:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.75rem;
+        }
+
+        .card-icon {
+            width: 34px;
+            height: 34px;
+            background: rgba(6, 182, 212, 0.12);
+            color: var(--accent);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .card-icon svg {
+            width: 18px;
+            height: 18px;
+            stroke-width: 2;
+        }
+
+        .card-header h3 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            color: #ffffff;
+        }
+
+        /* Telemetry Readouts */
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.85rem;
+        }
+
+        .tele-item {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 0.75rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tele-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 2px;
+            height: 100%;
+            background: var(--accent);
+        }
+
+        .tele-item.primary-accent::before {
+            background: var(--primary);
+        }
+
+        .tele-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+
+        .tele-value {
+            font-family: var(--font-mono);
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #ffffff;
+            display: flex;
+            align-items: baseline;
+            gap: 0.15rem;
+        }
+
+        .tele-unit {
+            font-size: 0.75rem;
+            color: var(--accent);
+            font-weight: 400;
+        }
+
+        /* Checklist / Info items */
+        .info-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .info-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.65rem;
+            font-size: 0.88rem;
+            line-height: 1.45;
+            color: var(--text-muted);
+        }
+
+        .info-list li strong {
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        .info-list li svg {
+            width: 16px;
+            height: 16px;
+            color: var(--accent);
+            flex-shrink: 0;
+            margin-top: 3px;
+        }
+
+        /* Buttons & Interactions */
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            padding: 0.8rem 1.25rem;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            text-decoration: none;
+            width: 100%;
+        }
+
+        .btn-glow {
+            background: linear-gradient(135deg, var(--primary), #4f46e5);
+            color: white;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        .btn-glow:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+            filter: brightness(1.1);
+        }
+
+        .btn-outline {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Sound Ambient Toggle Switch */
+        .sound-toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 0.5rem;
+        }
+
+        .toggle-label {
+            font-size: 0.88rem;
+            color: var(--text-main);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255,255,255,0.1);
+            transition: .3s;
+            border-radius: 24px;
+            border: 1px solid var(--border-color);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent);
+            border-color: var(--accent-glow);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Right Side Viewer Panel */
+        .viewer-panel {
+            padding: 1.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            height: 100%;
+            position: relative;
+        }
+
+        .viewer-card {
+            flex: 1;
+            background: rgba(8, 10, 22, 0.9);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .viewer-topbar {
+            background: rgba(13, 18, 36, 0.8);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.9rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .viewer-info h2 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .viewer-info p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .iframe-container {
+            flex: 1;
+            position: relative;
+            background: #000;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+        }
+
+        /* Custom Iframe Controls Layer */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #05070f;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.5s ease, pointer-events 0.5s ease;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(99, 102, 241, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            border-bottom-color: var(--accent);
+            animation: spin 1.2s linear infinite;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+
+        .loading-sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* Gyroscope/VR mobile tip floating widget */
+        .gyro-tip {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1rem;
+            border-radius: 12px;
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.15);
+            font-size: 0.8rem;
+            color: #cbd5e1;
+            line-height: 1.35;
+        }
+
+        .gyro-tip svg {
+            width: 22px;
+            height: 22px;
+            color: var(--accent);
+            flex-shrink: 0;
+            animation: shake 2.5s infinite ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: rotate(0deg); }
+            20%, 60% { transform: rotate(-15deg); }
+            40%, 80% { transform: rotate(15deg); }
+        }
+
+        /* Footer inside main layout */
+        .app-footer {
+            padding: 1.25rem 2.5rem;
+            border-top: 1px solid var(--border-color);
+            background: rgba(5, 7, 15, 0.85);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+            position: relative;
+        }
+
+        .footer-brand {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--accent);
+        }
+
+        /* Floating Active Badge for Telemetry Pulse */
+        .pulse-light {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background-color: var(--accent);
+            border-radius: 50%;
+            margin-right: 4px;
+            box-shadow: 0 0 6px var(--accent);
+            animation: blink 1.2s infinite steps(2, start);
+        }
+
+        @keyframes blink {
+            to { visibility: hidden; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Canvas for Wind/Current Particles Effect -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Background Orbs -->
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12C20,13.62 19.5,15.13 18.69,16.38L16.38,14.07C16.78,13.43 17,12.74 17,12A5,5 0 0,0 12,7C11.26,7 10.57,7.22 9.93,7.62L7.62,5.31C8.87,4.5 10.38,4 12,4M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9M5.31,7.62L7.62,9.93C7.22,10.57 7,11.26 7,12A5,5 0 0,0 12,17C12.74,17 13.43,16.78 14.07,16.38L16.38,18.69C15.13,19.5 13.62,20 12,20A8,8 0 0,1 4,12C4,10.38 4.5,8.87 5.31,7.62Z" />
+                </svg>
+            </div>
+            <div class="logo-text">
+                <h1>AeroView 360 Pro</h1>
+                <span>Entorno de Inmersión Dron</span>
+            </div>
+        </div>
+        
+        <div class="header-status">
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                RECORRIDO EN LÍNEA
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Sidebar Controls & Telemetry -->
+        <div class="sidebar">
+            
+            <!-- Telemetry Display Card -->
+            <div class="panel-card">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
+                        </svg>
+                    </div>
+                    <h3>Telemetría de Vuelo <span class="pulse-light"></span></h3>
+                </div>
+                <div class="telemetry-grid">
+                    <div class="tele-item primary-accent">
+                        <span class="tele-label">ALTITUD</span>
+                        <span class="tele-value" id="val-alt">120.4<span class="tele-unit">m</span></span>
+                    </div>
+                    <div class="tele-item">
+                        <span class="tele-label">VELOCIDAD</span>
+                        <span class="tele-value" id="val-spd">14.2<span class="tele-unit">km/h</span></span>
+                    </div>
+                    <div class="tele-item">
+                        <span class="tele-label">ÁNGULO CÁMARA</span>
+                        <span class="tele-value" id="val-pitch">-45°<span class="tele-unit"></span></span>
+                    </div>
+                    <div class="tele-item primary-accent">
+                        <span class="tele-label">BATERÍA</span>
+                        <span class="tele-value" id="val-bat" style="color: var(--success);">88%</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted);">
+                        <span>SATELLITES:</span>
+                        <span style="color:#ffffff; font-family:var(--font-mono);" id="val-sat">18 GPS</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted);">
+                        <span>COORDENADAS:</span>
+                        <span style="color:var(--accent); font-family:var(--font-mono);" id="val-coords">23.4326° S, 67.7854° W</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tour details Card -->
+            <div class="panel-card">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 115 0z" />
+                        </svg>
+                    </div>
+                    <h3>Detalles del Panorama</h3>
+                </div>
+                <ul class="info-list">
+                    <li>
+                        <svg viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        <span><strong>Nombre:</strong> Para Prueba 360</span>
+                    </li>
+                    <li>
+                        <svg viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        <span><strong>Plataforma:</strong> Panoee Cloud Studio</span>
+                    </li>
+                    <li>
+                        <svg viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        <span><strong>Tipo de Lente:</strong> Gran Angular 360°</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Immersive Settings & Audio Card -->
+            <div class="panel-card">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+                        </svg>
+                    </div>
+                    <h3>Ambiente Inmersivo</h3>
+                </div>
+                <div class="sound-toggle-container">
+                    <span class="toggle-label">
+                        Sonido de Viento (Efecto)
+                    </span>
+                    <label class="switch">
+                        <input type="checkbox" id="ambient-sound-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.4; margin-top:0.75rem;">
+                    Habilita el sintetizador de sonido en tiempo real para generar un sonido ambiental de viento/motores suaves y enriquecer la experiencia de vuelo interactivo.
+                </p>
+            </div>
+
+            <!-- Inter-page connection Card (relative link updated to ./visualizador_360.html) -->
+            <div class="panel-card" style="margin-top:auto;">
+                <div class="card-header" style="margin-bottom:0.75rem;">
+                    <div class="card-icon" style="color:var(--primary); background:rgba(99,102,241,0.12);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                        </svg>
+                    </div>
+                    <h3>Visores Vinculados</h3>
+                </div>
+                <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom: 1rem; line-height:1.4;">
+                    ¿Tienes archivos equirectangulares de fotos individuales? Abre tu visor de fotos local cosido:
+                </p>
+                <a href="./visualizador_360.html" class="btn btn-outline">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375 .375 0 11-.75 0 .375 .375 0 01.75 0z" />
+                    </svg>
+                    Visor de Fotos 360 Local
+                </a>
+            </div>
+
+        </div>
+
+        <!-- Right Side Main Viewport -->
+        <div class="viewer-panel">
+            
+            <div class="viewer-card">
+                <!-- Top details bar -->
+                <div class="viewer-topbar">
+                    <div class="viewer-info">
+                        <h2>
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--accent);">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            Vista en Vivo 360
+                        </h2>
+                        <p>Recorrido Panoee hospedado en la nube</p>
+                    </div>
+                    
+                    <button class="btn btn-outline" id="btn-fullscreen-toggle" style="width: auto; padding: 0.5rem 0.85rem; font-size: 0.8rem; border-radius: 8px;">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75h4.5m0-3h-7.5v7.5m3-4.5m16.5 16.5h-4.5m0 3h7.5v-7.5m-3 4.5m-13.5 0h4.5m0 3h-7.5v-7.5m3 4.5m10.5-13.5h-4.5m0-3h7.5v7.5m-3-4.5" />
+                        </svg>
+                        Maximizar
+                    </button>
+                </div>
+
+                <!-- Iframe Display -->
+                <div class="iframe-container" id="iframe-wrap">
+                    <!-- Loading state -->
+                    <div class="loading-overlay" id="loader">
+                        <div class="spinner"></div>
+                        <div class="loading-text">CONECTANDO CON EL SERVIDOR 360</div>
+                        <div class="loading-sub">Cargando texturas y nodos interactivos...</div>
+                    </div>
+
+                    <!-- The Panoee tour iframe -->
+                    <iframe 
+                        id="tour-iframe"
+                        src="https://tour.panoee.net/6a1dd617e00bbb945cc7f4ee/para-prueba-360" 
+                        allow="accelerometer; gyroscope; magnetometer; vr; xr; xr-spatial-tracking; fullscreen" 
+                        allowfullscreen="true">
+                    </iframe>
+                </div>
+            </div>
+
+            <!-- Mobile gyroscope helpful banner -->
+            <div class="gyro-tip">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-6 18.75h12" />
+                </svg>
+                <div>
+                    <strong>¿Estás en un celular o tablet?</strong> Mueve tu dispositivo físicamente para mirar alrededor del panorama 360°. Asegúrate de permitir el acceso al movimiento físico si tu navegador lo solicita en pantalla.
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="app-footer">
+        <div>
+            Desarrollado en <span class="footer-brand">AeroView 360 Portal</span> &copy; 2026. Todos los derechos reservados.
+        </div>
+        <div class="footer-links">
+            <span style="color:var(--text-muted);">Estilo: Dark Premium</span>
+            <span style="color:var(--accent);">|</span>
+            <span style="color:var(--text-muted);">Ubicación del Archivo: E:\DRONE\index.html</span>
+        </div>
+    </footer>
+
+    <!-- Scripts Logic -->
+    <script>
+        // --- Particle background animation (Wind Simulator) ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let particles = [];
+        const maxParticles = 60;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class FlowParticle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 1.5 + 0.5;
+                this.speedX = Math.random() * 0.8 + 0.2; // Flowing slowly to the right
+                this.speedY = (Math.random() - 0.5) * 0.25;
+                this.alpha = Math.random() * 0.4 + 0.1;
+                this.length = Math.random() * 80 + 20; // Streaks to look like air currents
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                // Reset when leaving screen
+                if (this.x - this.length > canvas.width) {
+                    this.reset();
+                    this.x = -this.length;
+                }
+                if (this.y < 0 || this.y > canvas.height) {
+                    this.reset();
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                let gradient = ctx.createLinearGradient(this.x, this.y, this.x + this.length, this.y);
+                gradient.addColorStop(0, `rgba(99, 102, 241, ${this.alpha})`);
+                gradient.addColorStop(0.5, `rgba(6, 182, 212, ${this.alpha * 0.6})`);
+                gradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
+                
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = this.size;
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x + this.length, this.y);
+                ctx.stroke();
+            }
+        }
+
+        // Initialize particles
+        for (let i = 0; i < maxParticles; i++) {
+            particles.push(new FlowParticle());
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+
+        // --- Dynamic Telemetry Simulator ---
+        function updateTelemetry() {
+            // Altitude gentle changes
+            const altEl = document.getElementById('val-alt');
+            let baseAlt = 120.4 + (Math.sin(Date.now() / 4000) * 0.8);
+            altEl.innerHTML = `${baseAlt.toFixed(1)}<span class="tele-unit">m</span>`;
+
+            // Speed gentle changes
+            const spdEl = document.getElementById('val-spd');
+            let baseSpd = 14.2 + (Math.cos(Date.now() / 3000) * 0.4);
+            spdEl.innerHTML = `${baseSpd.toFixed(1)}<span class="tele-unit">km/h</span>`;
+
+            // Camera tilt pitch simulator
+            const pitchEl = document.getElementById('val-pitch');
+            let basePitch = -45 + Math.round(Math.sin(Date.now() / 8000) * 5);
+            pitchEl.innerHTML = `${basePitch}°<span class="tele-unit"></span>`;
+
+            // Satellites subtle variation
+            const satEl = document.getElementById('val-sat');
+            let satNum = 18;
+            if (Date.now() % 15000 < 2000) satNum = 17;
+            if (Date.now() % 22000 < 2000) satNum = 19;
+            satEl.textContent = `${satNum} GPS`;
+
+            // Coordinates subtle flicker
+            const coordsEl = document.getElementById('val-coords');
+            let latOffset = (Math.sin(Date.now() / 5000) * 0.0001).toFixed(4);
+            let lngOffset = (Math.cos(Date.now() / 6000) * 0.0001).toFixed(4);
+            coordsEl.textContent = `${(23.4326 + parseFloat(latOffset)).toFixed(4)}° S, ${(67.7854 + parseFloat(lngOffset)).toFixed(4)}° W`;
+        }
+        setInterval(updateTelemetry, 1000);
+
+
+        // --- Sound Generator (Web Audio API Synthesizer) ---
+        let audioCtx = null;
+        let windNode = null;
+        let windFilter = null;
+        let windGain = null;
+        let isPlayingSound = false;
+
+        function startWindSound() {
+            if (!audioCtx) {
+                // Initialize context
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // 1. Generate Noise Buffer (White Noise)
+                const bufferSize = 2 * audioCtx.sampleRate;
+                const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const output = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+                
+                windNode = audioCtx.createBufferSource();
+                windNode.buffer = noiseBuffer;
+                windNode.loop = true;
+
+                // 2. Add Bandpass Filter to mold it into a "howling wind" sound
+                windFilter = audioCtx.createBiquadFilter();
+                windFilter.type = 'bandpass';
+                windFilter.frequency.value = 350; // Low hum frequency
+                windFilter.Q.value = 2.0;
+
+                // 3. Add Gain node for volume control
+                windGain = audioCtx.createGain();
+                windGain.gain.setValueAtTime(0.0, audioCtx.currentTime); // Start quiet
+
+                // Connections
+                windNode.connect(windFilter);
+                windFilter.connect(windGain);
+                windGain.connect(audioCtx.destination);
+                
+                windNode.start();
+            }
+
+            // Resume context if suspended (browser safety rules)
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            // Gently ramp volume up to prevent pops
+            windGain.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 1.5);
+            
+            // Dynamic oscillation of the wind howling frequency (ambient automation)
+            function oscillateWind() {
+                if (!isPlayingSound) return;
+                const time = audioCtx.currentTime;
+                // Wave between 180Hz (deep hum) and 550Hz (higher whistle)
+                const targetFreq = 300 + Math.sin(time * 0.4) * 120 + Math.cos(time * 1.5) * 30;
+                const targetQ = 1.5 + Math.sin(time * 0.8) * 0.5;
+                const targetVolume = 0.08 + Math.sin(time * 0.5) * 0.04;
+                
+                windFilter.frequency.setValueAtTime(targetFreq, time);
+                windFilter.Q.setValueAtTime(targetQ, time);
+                windGain.gain.setValueAtTime(targetVolume, time);
+                
+                requestAnimationFrame(oscillateWind);
+            }
+            
+            isPlayingSound = true;
+            oscillateWind();
+        }
+
+        function stopWindSound() {
+            if (windGain && audioCtx) {
+                // Gently ramp volume down to 0
+                windGain.gain.linearRampToValueAtTime(0.0, audioCtx.currentTime + 1.0);
+                setTimeout(() => {
+                    isPlayingSound = false;
+                }, 1000);
+            }
+        }
+
+        document.getElementById('ambient-sound-toggle').addEventListener('change', function(e) {
+            if (e.target.checked) {
+                startWindSound();
+            } else {
+                stopWindSound();
+            }
+        });
+
+
+        // --- Fullscreen Viewport Trigger ---
+        const iframeWrap = document.getElementById('iframe-wrap');
+        const fsToggle = document.getElementById('btn-fullscreen-toggle');
+
+        fsToggle.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                iframeWrap.requestFullscreen().then(() => {
+                    fsToggle.textContent = 'Salir Pantalla Completa';
+                }).catch(err => {
+                    console.error(`Error enabling fullscreen: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+                fsToggle.textContent = 'Maximizar';
+            }
+        });
+
+        // Sync button text when exiting fullscreen using Escape key
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                fsToggle.textContent = 'Maximizar';
+            }
+        });
+
+
+        // --- Handle Iframe Loading State ---
+        const iframe = document.getElementById('tour-iframe');
+        const loader = document.getElementById('loader');
+
+        // Hide spinner once loaded
+        iframe.addEventListener('load', () => {
+            loader.style.opacity = '0';
+            setTimeout(() => {
+                loader.style.display = 'none';
+            }, 500);
+        });
+
+        // Safeguard timeout (if remote server takes too long, hide loader anyway)
+        setTimeout(() => {
+            if (loader.style.display !== 'none') {
+                loader.style.opacity = '0';
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                }, 500);
+            }
+        }, 6000);
+    </script>
+</body>
+</html>
